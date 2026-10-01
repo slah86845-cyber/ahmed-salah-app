@@ -4242,5 +4242,67 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<!-- ===== V12.7 CUSTOMER ACTION — choose invoice and send as image ===== -->
+<style id="v127-customer-image-style">
+.v127-image-action{background:linear-gradient(180deg,#0e3150,#081e31)!important;color:#f7dc8f!important;border:1px solid rgba(216,180,91,.58)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.025),0 5px 14px rgba(0,0,0,.18)!important;white-space:nowrap}
+.v127-picker{position:fixed;inset:0;z-index:100500;display:none;align-items:flex-end;justify-content:center;background:rgba(0,6,13,.76);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.v127-picker.open{display:flex}
+.v127-sheet{width:min(760px,100%);max-height:88dvh;overflow:hidden;border-radius:26px 26px 0 0;border:1px solid rgba(216,180,91,.36);border-bottom:0;background:radial-gradient(circle at 50% 0%,rgba(44,125,176,.22),transparent 28%),linear-gradient(180deg,#0b2236,#061522);box-shadow:0 -26px 80px rgba(0,0,0,.58);color:#eef7ff}
+.v127-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid rgba(216,180,91,.18)}
+.v127-head h3{margin:0!important;color:#f6db8b!important;font-size:18px}.v127-head small{display:block;margin-top:3px;color:#8fb0c8!important}
+.v127-close{width:40px;height:40px;padding:0!important;border-radius:50%!important;background:#fff!important;color:#1d2c3a!important;border:0!important;font-size:21px!important}
+.v127-list{padding:12px 14px calc(18px + env(safe-area-inset-bottom));overflow:auto;max-height:72dvh;display:grid;gap:9px}
+.v127-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid #285579;border-radius:17px;padding:12px;background:linear-gradient(145deg,#102d43,#071927);box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.v127-card-main{min-width:0}.v127-card-main b{display:block;color:#fff;font-size:14px}.v127-card-main span{display:block;color:#9ab7cf;font-size:11px;margin-top:4px}.v127-card-main em{display:block;color:#f5d887;font-size:11px;font-style:normal;margin-top:5px}
+.v127-send{min-width:112px!important;padding:9px 10px!important;border-radius:13px!important;background:linear-gradient(180deg,#dcb556,#b47e25)!important;color:#07121d!important;border:1px solid #f2d985!important;font-weight:900!important}
+.v127-empty{padding:28px 14px;text-align:center;border:1px dashed rgba(216,180,91,.28);border-radius:16px;color:#93aec4}
+@media(max-width:600px){.v127-card{grid-template-columns:minmax(0,1fr) 105px}.v127-send{min-width:100px!important;font-size:11px!important}}
+</style>
+<div id="v127CustomerImagePicker" class="v127-picker" aria-hidden="true" onclick="if(event.target===this)v127CloseCustomerImagePicker()">
+  <section class="v127-sheet" role="dialog" aria-modal="true" aria-labelledby="v127Title">
+    <div class="v127-head"><div><h3 id="v127Title">اختيار قائمة وإرسال صورة</h3><small id="v127Sub">اختر القائمة التي تريد إرسالها كصورة</small></div><button type="button" class="v127-close" onclick="v127CloseCustomerImagePicker()" aria-label="إغلاق">×</button></div>
+    <div id="v127CustomerImageList" class="v127-list"></div>
+  </section>
+</div>
+<script id="v127-customer-image-runtime">
+(function(){
+'use strict';
+function E(id){return document.getElementById(id)}
+function A(v){return Array.isArray(v)?v:[]}
+function safe(s){return String(s==null?'':s).replace(/[&<>\"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'})[c]})}
+function fmt(v){try{return typeof money==='function'?money(Number(v)||0):new Intl.NumberFormat('en-US').format(Number(v)||0)+' د.ع'}catch(_e){return String(v||0)}}
+function date(v){try{return typeof localDate==='function'?localDate(v):new Date(v).toLocaleDateString('ar-IQ')}catch(_e){return String(v||'')}}
+window.v127CloseCustomerImagePicker=function(){var p=E('v127CustomerImagePicker');if(p){p.classList.remove('open');p.setAttribute('aria-hidden','true')}};
+window.v127ChooseCustomerImage=function(customerId){
+  var c=A(db&&db.customers).find(function(x){return String(x.id)===String(customerId)});
+  if(!c)return alert('تعذر العثور على الزبون.');
+  var sales=A(db&&db.sales).filter(function(x){return x.status!=='cancelled'&&String(x.customerId)===String(customerId)}).sort(function(a,b){return new Date(b.date)-new Date(a.date)});
+  var p=E('v127CustomerImagePicker'),list=E('v127CustomerImageList'),sub=E('v127Sub');if(!p||!list)return;
+  if(sub)sub.textContent=c.name+' — اختر القائمة المراد إرسالها كصورة';
+  if(!sales.length){list.innerHTML='<div class="v127-empty">لا توجد قوائم بيع مسجلة لهذا الزبون.</div>'}
+  else list.innerHTML=sales.map(function(s){return '<div class="v127-card"><div class="v127-card-main"><b>'+safe(s.no||'قائمة بيع')+'</b><span>'+safe(date(s.date))+' · '+safe(c.name||'')+'</span><em>الإجمالي '+safe(fmt(s.total))+' · الباقي '+safe(fmt(s.due))+'</em></div><button type="button" class="v127-send" onclick="v127SendChosenSaleImage(\''+safe(s.id)+'\')">إرسال صورة</button></div>'}).join('');
+  p.classList.add('open');p.setAttribute('aria-hidden','false');
+};
+window.v127SendChosenSaleImage=function(saleId){
+  if(typeof shareSaleAsImage!=='function')return alert('وظيفة إرسال صورة القائمة غير متاحة في هذه النسخة.');
+  v127CloseCustomerImagePicker();
+  setTimeout(function(){try{shareSaleAsImage(saleId)}catch(e){console.error(e);alert('تعذر تجهيز صورة القائمة.')}},80);
+};
+function render(){
+  var body=E('customersBody');if(!body)return;
+  var q=(E('customerSearch')&&E('customerSearch').value||'').toLowerCase();
+  body.innerHTML=A(db&&db.customers).filter(function(c){return ((c.name||'')+' '+(c.phone||'')).toLowerCase().includes(q)}).map(function(c){
+    var d=typeof cDebt==='function'?cDebt(c.id):0,st=typeof customerStatus==='function'?customerStatus(c):{cls:'ok',txt:''};
+    return '<tr><td>'+safe(c.name)+'</td><td>'+safe(c.phone||'')+'</td><td>'+safe(c.area||'')+'</td><td>'+fmt(c.limit)+'</td><td>'+fmt(d)+'</td><td>'+fmt(Math.max(0,(Number(c.limit)||0)-d))+'</td><td><span class="badge '+safe(st.cls)+'">'+safe(st.txt)+'</span></td><td><div class="v4-actions"><button onclick="openStatement(\''+safe(c.id)+'\')">كشف</button><button onclick="openCustomer(\''+safe(c.id)+'\')">تعديل</button><button onclick="'+(typeof openWhatsAppForDebt==='function'?'openWhatsAppForDebt':'waCustomer')+'(\''+safe(c.id)+'\')">واتساب</button><button type="button" class="v127-image-action" onclick="v127ChooseCustomerImage(\''+safe(c.id)+'\')">اختيار إرسال صورة</button></div></td></tr>';
+  }).join('')||'<tr><td colspan="8" class="empty">لا يوجد زبائن.</td></tr>';
+}
+window.renderCustomers=render;
+try{renderCustomers=render}catch(_e){}
+function boot(){try{render()}catch(_e){}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,1000)});else setTimeout(boot,1000);
+})();
+</script>
+
 </body>
 </html>
