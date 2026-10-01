@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - dev-v7-2-20-android-fix
 
 jobs:
   build:
@@ -38,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Ahmed-Salah-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: '**/build/outputs/apk/debug/*.apk'
