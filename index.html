@@ -4304,5 +4304,66 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<!-- ===== V12.8 CUSTOMER DEBT IMAGE — send debt even without sale invoice ===== -->
+<style id="v128-debt-image-style">
+.v128-debt-card{border-color:rgba(216,180,91,.58)!important;background:linear-gradient(180deg,rgba(31,67,96,.96),rgba(8,31,50,.98))!important}
+.v128-debt-card .v127-card-main b{color:#ffe39a!important;font-size:17px!important}
+.v128-debt-card .v127-card-main em{color:#ffffff!important;font-size:15px!important;font-weight:900!important}
+.v128-debt-send{background:linear-gradient(180deg,#f0ca66,#c38d2b)!important;color:#07121d!important;border:1px solid #ffe39a!important;font-weight:900!important}
+</style>
+<script id="v128-debt-image-runtime">
+(function(){
+'use strict';
+function E(id){return document.getElementById(id)}
+function A(v){return Array.isArray(v)?v:[]}
+function safe(s){return String(s==null?'':s).replace(/[&<>\"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'})[c]})}
+function fmt(v){try{return typeof money==='function'?money(Number(v)||0):new Intl.NumberFormat('en-US').format(Number(v)||0)+' د.ع'}catch(_e){return String(v||0)}}
+function date(v){try{return typeof localDate==='function'?localDate(v):new Date(v).toLocaleDateString('ar-IQ')}catch(_e){return String(v||'')}}
+
+window.v128ShareCustomerDebtImage=async function(customerId){
+  try{
+    var c=A(db&&db.customers).find(function(x){return String(x.id)===String(customerId)});
+    if(!c)return alert('تعذر العثور على الزبون.');
+    var debt=typeof cDebt==='function'?Number(cDebt(c.id)||0):0;
+    if(typeof v51NewPage!=='function'||typeof v51CanvasBlob!=='function'||typeof v51ShareBlob!=='function')return alert('وظيفة إنشاء صورة الدين غير متاحة في هذه النسخة.');
+    var page=await v51NewPage(),canvas=page.canvas,ctx=page.ctx;
+    if(typeof v51DrawDocHeader==='function')v51DrawDocHeader(ctx,{title:'إشعار دين زبون',subtitle:c.name||'',date:typeof iso==='function'?iso():new Date().toISOString(),badge:debt>0?'مستحق':'مسدد'});
+    var right=930,left=125;
+    ctx.fillStyle='rgba(248,250,252,.96)';ctx.strokeStyle='#d7ab47';ctx.lineWidth=3;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(90,340,875,380,30);else ctx.rect(90,340,875,380);ctx.fill();ctx.stroke();
+    if(typeof v51DrawText==='function'){
+      v51DrawText(ctx,'الدين الحالي',right,420,{size:30,weight:'700',color:'#173c63'});
+      v51DrawText(ctx,fmt(debt),527,535,{size:62,weight:'700',color:debt>0?'#b7791f':'#047857',align:'center'});
+      v51DrawText(ctx,'دينار عراقي',527,585,{size:24,weight:'700',color:'#475569',align:'center'});
+      v51DrawText(ctx,'اسم الزبون: '+(c.name||''),right,660,{size:22,weight:'700',color:'#17202a'});
+      if(c.phone)v51DrawText(ctx,'الهاتف: '+c.phone,right,700,{size:20,color:'#475569'});
+      if(c.area)v51DrawText(ctx,'المنطقة: '+c.area,left,660,{size:20,color:'#475569',align:'left'});
+      v51DrawText(ctx,'سقف الذمة: '+fmt(c.limit||0),left,700,{size:20,color:'#475569',align:'left'});
+      var lm=typeof lastCustomerMove==='function'?lastCustomerMove(c.id):null;
+      if(lm)v51DrawText(ctx,'آخر حركة: '+date(lm),right,810,{size:21,color:'#475569'});
+      v51DrawText(ctx,'هذه الصورة توضح الرصيد الحالي المسجل على حساب الزبون.',right,910,{size:22,weight:'700',color:'#173c63'});
+      v51DrawText(ctx,(db&&db.settings&&db.settings.shop)||'جملة أحمد صلاح للملابس الجاهزة',527,1310,{size:25,weight:'700',color:'#173c63',align:'center'});
+    }
+    var blob=await v51CanvasBlob(canvas,'image/png');
+    if(typeof v127CloseCustomerImagePicker==='function')v127CloseCustomerImagePicker();
+    await v51ShareBlob(blob,'دين-'+(c.name||'زبون')+'.png','دين '+(c.name||''),'الدين الحالي '+fmt(debt));
+  }catch(e){console.error(e);alert('تعذر إنشاء صورة الدين: '+(e&&e.message?e.message:String(e||'خطأ غير معروف')))}
+};
+
+window.v127ChooseCustomerImage=function(customerId){
+  var c=A(db&&db.customers).find(function(x){return String(x.id)===String(customerId)});
+  if(!c)return alert('تعذر العثور على الزبون.');
+  var debt=typeof cDebt==='function'?Number(cDebt(c.id)||0):0;
+  var sales=A(db&&db.sales).filter(function(x){return x.status!=='cancelled'&&String(x.customerId)===String(customerId)}).sort(function(a,b){return new Date(b.date)-new Date(a.date)});
+  var p=E('v127CustomerImagePicker'),list=E('v127CustomerImageList'),sub=E('v127Sub');if(!p||!list)return;
+  if(sub)sub.textContent=c.name+' — اختر صورة الدين أو إحدى القوائم';
+  var debtCard='<div class="v127-card v128-debt-card"><div class="v127-card-main"><b>صورة الدين الحالي</b><span>'+safe(c.name||'')+'</span><em>الدين '+safe(fmt(debt))+'</em></div><button type="button" class="v127-send v128-debt-send" onclick="v128ShareCustomerDebtImage(\''+safe(c.id)+'\')">إرسال صورة الدين</button></div>';
+  var saleCards=sales.map(function(s){return '<div class="v127-card"><div class="v127-card-main"><b>'+safe(s.no||'قائمة بيع')+'</b><span>'+safe(date(s.date))+' · '+safe(c.name||'')+'</span><em>الإجمالي '+safe(fmt(s.total))+' · الباقي '+safe(fmt(s.due))+'</em></div><button type="button" class="v127-send" onclick="v127SendChosenSaleImage(\''+safe(s.id)+'\')">إرسال صورة</button></div>'}).join('');
+  list.innerHTML=debtCard+(sales.length?saleCards:'<div class="v127-empty">لا توجد قوائم بيع لهذا الزبون، لكن يمكنك إرسال صورة الدين أعلاه.</div>');
+  p.classList.add('open');p.setAttribute('aria-hidden','false');
+};
+})();
+</script>
+
 </body>
 </html>
