@@ -4365,5 +4365,70 @@ window.v127ChooseCustomerImage=function(customerId){
 })();
 </script>
 
+
+
+<!-- ===== V12.10 CUSTOMER DELETE / ARCHIVE BUTTON ===== -->
+<style id="v1210-customer-delete-style">
+.v1210-delete-customer{background:linear-gradient(180deg,#8f2334,#5e1422)!important;color:#fff4f5!important;border:1px solid #d55a6d!important;box-shadow:0 5px 14px rgba(80,8,24,.22)!important;font-weight:800!important;white-space:nowrap}
+.v1210-delete-customer:active{transform:translateY(1px)}
+</style>
+<script id="v1210-customer-delete-runtime">
+(function(){
+'use strict';
+function E(id){return document.getElementById(id)}
+function A(v){return Array.isArray(v)?v:[]}
+function safe(s){return String(s==null?'':s).replace(/[&<>\"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'})[c]})}
+function fmt(v){try{return typeof money==='function'?money(Number(v)||0):new Intl.NumberFormat('en-US').format(Number(v)||0)+' د.ع'}catch(_e){return String(v||0)}}
+function refreshCustomerSelectors(){
+  try{if(E('sCustomer')){var v=E('sCustomer').value;E('sCustomer').innerHTML=optsCustomers(true);if(A(db.customers).some(function(c){return c.id===v&&!c.archived}))E('sCustomer').value=v}}catch(_e){}
+  try{if(E('payParty')&&E('payType')&&E('payType').value==='customer')E('payParty').innerHTML=optsCustomers()}catch(_e){}
+  try{if(E('retCustomer'))E('retCustomer').innerHTML=optsCustomers()}catch(_e){}
+}
+window.v1210DeleteCustomer=function(id){
+  var idx=A(db&&db.customers).findIndex(function(c){return String(c.id)===String(id)});
+  if(idx<0)return alert('تعذر العثور على الزبون.');
+  var c=db.customers[idx];
+  var debt=typeof cDebt==='function'?Number(cDebt(c.id)||0):0;
+  var sales=A(db.sales).filter(function(x){return String(x.customerId)===String(c.id)});
+  var pays=A(db.payments).filter(function(x){return x.type==='customer'&&String(x.partyId)===String(c.id)});
+  var returns=A(db.returns).filter(function(x){return String(x.customerId)===String(c.id)});
+  var linked=sales.length+pays.length+returns.length;
+  if(linked||debt>0){
+    var msg='الزبون «'+c.name+'» مرتبط بحسابات مسجلة'+(debt>0?' ودينه الحالي '+fmt(debt):'')+'.\n\nللحفاظ على الديون والقوائم، زر مسح سيخفي الاسم من قائمة الزبائن والاختيار فقط ولن يحذف الحركات المالية.\n\nمتابعة؟';
+    if(!confirm(msg))return;
+    c.archived=true;c.archivedAt=(typeof iso==='function'?iso():new Date().toISOString());
+    try{if(typeof logAction==='function')logAction('customer','إخفاء زبون من القائمة: '+c.name)}catch(_e){}
+  }else{
+    if(!confirm('مسح الزبون «'+c.name+'» نهائيا من القائمة؟'))return;
+    db.customers.splice(idx,1);
+    try{if(typeof logAction==='function')logAction('customer','مسح زبون: '+c.name)}catch(_e){}
+  }
+  try{persist()}catch(_e){}
+  try{renderCustomers()}catch(_e){}
+  refreshCustomerSelectors();
+};
+
+/* لا تعرض الزبائن الذين تم إخفاؤهم في اختيارات البيع والتسديد والمرتجع */
+window.optsCustomers=function(includeCash){
+  var first=includeCash?'<option value="">بيع نقدي — بدون تسجيل زبون</option>':'<option value="">اختر زبون</option>';
+  return first+A(db&&db.customers).filter(function(c){return !c.archived}).map(function(c){return '<option value="'+safe(c.id)+'">'+safe(c.name)+'</option>'}).join('');
+};
+try{optsCustomers=window.optsCustomers}catch(_e){}
+
+function render(){
+  var body=E('customersBody');if(!body)return;
+  var q=(E('customerSearch')&&E('customerSearch').value||'').toLowerCase();
+  body.innerHTML=A(db&&db.customers).filter(function(c){return !c.archived&&(((c.name||'')+' '+(c.phone||'')).toLowerCase().includes(q))}).map(function(c){
+    var d=typeof cDebt==='function'?cDebt(c.id):0,st=typeof customerStatus==='function'?customerStatus(c):{cls:'ok',txt:''};
+    return '<tr><td>'+safe(c.name)+'</td><td>'+safe(c.phone||'')+'</td><td>'+safe(c.area||'')+'</td><td>'+fmt(c.limit)+'</td><td>'+fmt(d)+'</td><td>'+fmt(Math.max(0,(Number(c.limit)||0)-d))+'</td><td><span class="badge '+safe(st.cls)+'">'+safe(st.txt)+'</span></td><td><div class="v4-actions"><button onclick="openStatement(\''+safe(c.id)+'\')">كشف</button><button onclick="openCustomer(\''+safe(c.id)+'\')">تعديل</button><button onclick="'+(typeof openWhatsAppForDebt==='function'?'openWhatsAppForDebt':'waCustomer')+'(\''+safe(c.id)+'\')">واتساب</button><button type="button" class="v127-image-action" onclick="v127ChooseCustomerImage(\''+safe(c.id)+'\')">اختيار إرسال صورة</button><button type="button" class="v1210-delete-customer" onclick="v1210DeleteCustomer(\''+safe(c.id)+'\')">مسح</button></div></td></tr>';
+  }).join('')||'<tr><td colspan="8" class="empty">لا يوجد زبائن.</td></tr>';
+}
+window.renderCustomers=render;
+try{renderCustomers=render}catch(_e){}
+function boot(){try{render()}catch(_e){}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,1100)});else setTimeout(boot,1100);
+})();
+</script>
+
 </body>
 </html>
