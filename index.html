@@ -4128,5 +4128,109 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<!-- ===== V12.5 CUSTOMER OPENING DEBT — approved change #4 ===== -->
+<style id="v125-customer-debt-style">
+#cOpeningDebt{font-weight:900!important;color:#07131f!important;border:1px solid rgba(216,180,91,.85)!important;box-shadow:0 0 0 2px rgba(216,180,91,.10)!important}
+.v125-debt-note{font-size:11px;line-height:1.7;color:#8fa3b8;margin-top:5px}
+</style>
+<script id="v125-customer-debt-runtime">
+(function(){
+'use strict';
+function E(id){return document.getElementById(id)}
+function num(v){var x=Number(v);return Number.isFinite(x)?x:0}
+function ensureField(){
+  if(E('cOpeningDebt'))return;
+  var limit=E('cLimit');if(!limit)return;
+  var limitBox=limit.closest('div');if(!limitBox||!limitBox.parentElement)return;
+  var box=document.createElement('div');box.id='v125OpeningDebtBox';
+  box.innerHTML='<label>دين الزبون</label><input id="cOpeningDebt" type="number" min="0" step="1" inputmode="numeric" placeholder="0"><div class="v125-debt-note">اكتب هنا الدين السابق الموجود عندك على الزبون، بدون إنشاء قائمة بيع.</div>';
+  limitBox.parentElement.insertBefore(box,limitBox);
+}
+
+/* الدين = الدين السابق + بواقي القوائم - المرتجعات - التسديدات */
+window.cDebt=function(id){
+  var c=(db.customers||[]).find(function(x){return x.id===id});
+  var opening=Math.max(0,num(c&&c.openingDebt));
+  var due=(db.sales||[]).filter(function(x){return x.customerId===id && x.status!=='cancelled'}).reduce(function(a,x){return a+num(x.due)},0);
+  var returned=(db.returns||[]).filter(function(x){return x.customerId===id && x.status!=='cancelled'}).reduce(function(a,x){return a+num(x.creditApplied!=null?x.creditApplied:x.value)},0);
+  var pays=(db.payments||[]).filter(function(x){return x.type==='customer'&&x.partyId===id&&x.status!=='cancelled'}).reduce(function(a,x){return a+num(x.amount)},0);
+  return Math.max(0,opening+due-returned-pays);
+};
+
+window.lastCustomerMove=function(id){
+  var c=(db.customers||[]).find(function(x){return x.id===id});
+  var dates=[];
+  (db.sales||[]).filter(function(x){return x.customerId===id&&x.status!=='cancelled'}).forEach(function(x){dates.push(x.date)});
+  (db.payments||[]).filter(function(x){return x.type==='customer'&&x.partyId===id&&x.status!=='cancelled'}).forEach(function(x){dates.push(x.date)});
+  (db.returns||[]).filter(function(x){return x.customerId===id&&x.status!=='cancelled'}).forEach(function(x){dates.push(x.date)});
+  if(c&&num(c.openingDebt)>0)dates.push(c.openingDebtDate||c.created||new Date().toISOString());
+  dates=dates.filter(Boolean).sort();return dates.length?dates[dates.length-1]:null;
+};
+
+var previousOpenCustomer=window.openCustomer;
+window.openCustomer=function(id){
+  ensureField();
+  var r=previousOpenCustomer.apply(this,arguments);
+  var c=(db.customers||[]).find(function(x){return x.id===id});
+  if(E('cOpeningDebt'))E('cOpeningDebt').value=c?Math.max(0,num(c.openingDebt)):0;
+  return r;
+};
+
+window.saveCustomer=function(e){
+  if(e&&e.preventDefault)e.preventDefault();ensureField();
+  if(!E('cName').value.trim())return alert('اكتب اسم الزبون');
+  var id=E('cId').value||uid('c');
+  var old=(db.customers||[]).find(function(x){return x.id===id});
+  var openingDebt=Math.max(0,num(E('cOpeningDebt')?E('cOpeningDebt').value:0));
+  var o={
+    id:id,
+    name:E('cName').value.trim(),
+    phone:E('cPhone').value.trim(),
+    area:E('cArea').value.trim(),
+    limit:Math.max(0,num(E('cLimit').value)),
+    debtDays:Math.max(0,num(E('cDebtDays').value)),
+    waEnabled:E('cWaEnabled')?E('cWaEnabled').checked:true,
+    openingDebt:openingDebt,
+    openingDebtDate:openingDebt>0?(old&&old.openingDebtDate?old.openingDebtDate:iso()):null,
+    created:old&&old.created?old.created:iso()
+  };
+  var i=db.customers.findIndex(function(x){return x.id===id});
+  if(i>=0)db.customers[i]=o;else db.customers.push(o);
+  logAction('customer',(i>=0?'تعديل':'إضافة')+' زبون: '+o.name+(openingDebt>0?' — دين سابق '+money(openingDebt):''));
+  var backToSale=returnToSaleAfterCustomer;returnToSaleAfterCustomer=false;
+  E('customerDlg').close();persist();
+  if(backToSale){
+    E('sCustomer').innerHTML=optsCustomers(true);E('sCustomer').value=o.id;recalcSale();E('saleDlg').showModal();
+    setTimeout(function(){try{E('sBarcodeQuick').focus()}catch(_e){}},120);
+  }
+  try{if(typeof v123oRefreshCustomerButton==='function')v123oRefreshCustomerButton()}catch(_e){}
+};
+
+window.getCustomerStatementData=function(id){
+  var c=(db.customers||[]).find(function(x){return x.id===id});if(!c)return null;
+  var moves=[];
+  if(num(c.openingDebt)>0)moves.push({date:c.openingDebtDate||c.created||iso(),text:'دين سابق / رصيد افتتاحي',debit:num(c.openingDebt),credit:0});
+  (db.sales||[]).filter(function(x){return x.customerId===id&&x.status!=='cancelled'&&num(x.due)>0}).forEach(function(x){moves.push({date:x.date,text:'فاتورة '+x.no,debit:num(x.due),credit:0})});
+  (db.payments||[]).filter(function(x){return x.type==='customer'&&x.partyId===id&&x.status!=='cancelled'}).forEach(function(x){moves.push({date:x.date,text:'تسديد'+(x.note?' — '+x.note:''),debit:0,credit:num(x.amount)})});
+  (db.returns||[]).filter(function(x){return x.customerId===id&&x.status!=='cancelled'&&num(x.creditApplied!=null?x.creditApplied:x.value)>0}).forEach(function(x){moves.push({date:x.date,text:'مرتجع '+(x.saleNo||'')+' — '+(x.productName||''),debit:0,credit:num(x.creditApplied!=null?x.creditApplied:x.value)})});
+  moves.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
+  var bal=0,rows=moves.map(function(x){bal=Math.max(0,bal+x.debit-x.credit);return Object.assign({},x,{balance:bal})});
+  var lm=lastCustomerMove(id);return {customer:c,rows:rows,debt:cDebt(id),age:lm?days(lm):0};
+};
+
+window.openStatement=function(id){
+  var d=getCustomerStatementData(id);if(!d)return;var c=d.customer;currentStatementCustomerId=id;
+  E('statementTitle').textContent='كشف حساب — '+c.name;
+  E('statementBody').innerHTML=d.rows.map(function(x){return '<tr><td>'+localDate(x.date)+'</td><td>'+esc(x.text)+'</td><td>'+(x.debit?money(x.debit):'-')+'</td><td>'+(x.credit?money(x.credit):'-')+'</td><td><b>'+money(x.balance)+'</b></td></tr>'}).join('')||'<tr><td colspan="5" class="empty">لا توجد حركات.</td></tr>';
+  E('statementSummary').innerHTML='<div><span>الرصيد الحالي</span><b>'+money(d.debt)+'</b></div><div><span>سقف الذمة</span><b>'+money(c.limit)+'</b></div><div><span>عمر آخر حركة</span><b>'+d.age+' يوم</b></div>';
+  E('statementWaBtn').style.display=c.phone?'inline-block':'none';E('statementDlg').showModal();
+};
+
+function boot(){ensureField()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,900)});else setTimeout(boot,900);
+})();
+</script>
+
 </body>
 </html>
