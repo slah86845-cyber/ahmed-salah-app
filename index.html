@@ -4073,5 +4073,60 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<!-- ===== V12.4 PRICE TYPE TOGGLE — approved change #3 ===== -->
+<style id="v124-price-toggle-style">
+#sPriceType{display:none!important}
+.v124-price-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.v124-price-btn{min-height:48px!important;border-radius:14px!important;font-weight:900!important;font-size:14px!important;letter-spacing:.1px;transition:transform .12s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease,color .16s ease;position:relative;overflow:hidden}
+.v124-price-btn:active{transform:scale(.985)}
+.v124-price-btn.wholesale{background:linear-gradient(145deg,#102c40,#071a29)!important;color:#f2d483!important;border:1px solid rgba(216,180,91,.42)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.025),0 7px 18px rgba(0,0,0,.18)!important}
+.v124-price-btn.retail{background:linear-gradient(145deg,#0a3349,#071e2e)!important;color:#86ddff!important;border:1px solid rgba(84,217,255,.34)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.025),0 7px 18px rgba(0,0,0,.18)!important}
+.v124-price-btn.wholesale.active{background:linear-gradient(145deg,#caa84d,#8f6f20)!important;color:#07131f!important;border-color:#f0d97a!important;box-shadow:0 0 0 2px rgba(216,180,91,.16),0 8px 24px rgba(188,145,37,.34)!important}
+.v124-price-btn.retail.active{background:linear-gradient(145deg,#42c9ff,#167da9)!important;color:#041019!important;border-color:#8de6ff!important;box-shadow:0 0 0 2px rgba(84,217,255,.14),0 8px 24px rgba(33,174,225,.30)!important}
+.v124-price-btn .sub{display:block;font-size:9px;font-weight:700;opacity:.72;margin-top:2px}
+@media(max-width:600px){.v124-price-btn{min-height:46px!important;font-size:13px!important}}
+</style>
+<script id="v124-price-toggle-runtime">
+(function(){
+'use strict';
+function E(id){return document.getElementById(id)}
+function ensure(){
+  var s=E('sPriceType');if(!s)return;
+  var wrap=s.parentElement;if(!wrap)return;
+  var box=E('v124PriceToggle');
+  if(!box){
+    box=document.createElement('div');box.id='v124PriceToggle';box.className='v124-price-toggle';
+    box.innerHTML='<button type="button" id="v124Wholesale" class="v124-price-btn wholesale" data-price="wholesale">جملة<span class="sub">سعر الجملة</span></button><button type="button" id="v124Retail" class="v124-price-btn retail" data-price="retail">مفرد<span class="sub">سعر المفرد</span></button>';
+    wrap.appendChild(box);
+    box.addEventListener('click',function(ev){var b=ev.target.closest('button[data-price]');if(!b)return;setPrice(b.getAttribute('data-price'))});
+    s.addEventListener('change',sync);
+  }
+  sync();
+}
+function sync(){
+  var s=E('sPriceType');if(!s)return;
+  var val=s.value||'wholesale';
+  var w=E('v124Wholesale'),r=E('v124Retail');
+  if(w)w.classList.toggle('active',val==='wholesale');
+  if(r)r.classList.toggle('active',val==='retail');
+}
+function setPrice(val){
+  var s=E('sPriceType');if(!s)return;
+  if(val!=='wholesale'&&val!=='retail')val='wholesale';
+  if(s.value!==val){s.value=val;try{s.dispatchEvent(new Event('change',{bubbles:true}))}catch(_e){}}
+  sync();
+  try{if(typeof refreshSalePrices==='function')refreshSalePrices()}catch(e){console.error(e)}
+  try{if(typeof recalcSale==='function')recalcSale()}catch(e){console.error(e)}
+}
+window.v124SetPrice=setPrice;
+window.v124SyncPrice=sync;
+var baseOpen=window.openSale;
+if(typeof baseOpen==='function')window.openSale=function(){var r=baseOpen.apply(this,arguments);setTimeout(function(){ensure();sync()},120);return r};
+function boot(){ensure();sync()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,850)});else setTimeout(boot,850);
+})();
+</script>
+
 </body>
 </html>
