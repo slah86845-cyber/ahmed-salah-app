@@ -25,15 +25,20 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+
+      - name: Verify Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+
       - name: Install Android SDK 35
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
