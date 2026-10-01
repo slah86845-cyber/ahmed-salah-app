@@ -4430,5 +4430,130 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+
+<!-- ===== V12.11 CURRENT CUSTOMER DEBT — exact visible balance editing ===== -->
+<style id="v1211-current-debt-style">
+#cOpeningDebt{font-weight:900!important;color:#07131f!important;border:1px solid rgba(216,180,91,.9)!important;box-shadow:0 0 0 2px rgba(216,180,91,.12)!important}
+#v125OpeningDebtBox .v125-debt-note{color:#90a9bd!important}
+</style>
+<script id="v1211-current-debt-runtime">
+(function(){
+'use strict';
+function E(id){return document.getElementById(id)}
+function A(v){return Array.isArray(v)?v:[]}
+function N(v){var x=Number(v);return Number.isFinite(x)?x:0}
+function now(){try{return typeof iso==='function'?iso():new Date().toISOString()}catch(_e){return new Date().toISOString()}}
+function baseDebt(id){
+  var due=A(db&&db.sales).filter(function(x){return String(x.customerId)===String(id)&&x.status!=='cancelled'}).reduce(function(a,x){return a+N(x.due)},0);
+  var returned=A(db&&db.returns).filter(function(x){return String(x.customerId)===String(id)&&x.status!=='cancelled'}).reduce(function(a,x){return a+N(x.creditApplied!=null?x.creditApplied:x.value)},0);
+  var pays=A(db&&db.payments).filter(function(x){return x.type==='customer'&&String(x.partyId)===String(id)&&x.status!=='cancelled'}).reduce(function(a,x){return a+N(x.amount)},0);
+  return due-returned-pays;
+}
+function debt(id){
+  var c=A(db&&db.customers).find(function(x){return String(x.id)===String(id)});
+  var adjustment=N(c&&c.openingDebt);
+  return Math.max(0,baseDebt(id)+adjustment);
+}
+window.v1211CustomerDebt=debt;
+window.cDebt=debt;
+try{cDebt=debt}catch(_e){}
+
+function ensureDebtField(){
+  var input=E('cOpeningDebt');
+  if(!input&&typeof window.openCustomer==='function'){
+    try{var limit=E('cLimit'),box=limit&&limit.closest('div');if(box&&box.parentElement){var d=document.createElement('div');d.id='v125OpeningDebtBox';d.innerHTML='<label>الدين الحالي</label><input id="cOpeningDebt" type="number" min="0" step="1" inputmode="numeric" placeholder="0"><div class="v125-debt-note">اكتب الدين الذي تريد أن يظهر على الزبون الآن.</div>';box.parentElement.insertBefore(d,box)}}catch(_e){}
+    input=E('cOpeningDebt');
+  }
+  if(input){
+    var box=input.closest('div');
+    var label=box&&box.querySelector('label');if(label)label.textContent='الدين الحالي';
+    var note=box&&box.querySelector('.v125-debt-note');if(note)note.textContent='اكتب المبلغ النهائي الذي تريد أن يظهر كدين على الزبون. الحفظ يحدّث الرصيد الظاهر مباشرة بدون حذف القوائم أو التسديدات.';
+  }
+  return input;
+}
+
+var oldOpen=window.openCustomer;
+window.openCustomer=function(id){
+  ensureDebtField();
+  var r=typeof oldOpen==='function'?oldOpen.apply(this,arguments):undefined;
+  var input=ensureDebtField();
+  var c=A(db&&db.customers).find(function(x){return String(x.id)===String(id)});
+  if(input)input.value=c?Math.round(debt(c.id)):0;
+  return r;
+};
+try{openCustomer=window.openCustomer}catch(_e){}
+
+window.saveCustomer=function(e){
+  if(e&&e.preventDefault)e.preventDefault();
+  var input=ensureDebtField();
+  if(!E('cName')||!E('cName').value.trim())return alert('اكتب اسم الزبون');
+  var id=(E('cId')&&E('cId').value)||uid('c');
+  var old=A(db&&db.customers).find(function(x){return String(x.id)===String(id)});
+  var desired=Math.max(0,N(input?input.value:0));
+  var before=old?debt(id):0;
+  var base=baseDebt(id);
+  var adjustment=desired-base; /* قد يكون سالباً حتى يصبح الدين الظاهر مطابقاً تماماً للرقم المدخل */
+  var changed=Math.abs(before-desired)>0.5;
+  var o=Object.assign({},old||{}, {
+    id:id,
+    name:E('cName').value.trim(),
+    phone:E('cPhone')?E('cPhone').value.trim():'',
+    area:E('cArea')?E('cArea').value.trim():'',
+    limit:Math.max(0,N(E('cLimit')&&E('cLimit').value)),
+    debtDays:Math.max(0,N(E('cDebtDays')&&E('cDebtDays').value)),
+    waEnabled:E('cWaEnabled')?E('cWaEnabled').checked:(old&&old.waEnabled!==undefined?old.waEnabled:true),
+    openingDebt:adjustment,
+    openingDebtDate:Math.abs(adjustment)>0.5?(changed?now():(old&&old.openingDebtDate?old.openingDebtDate:now())):null,
+    manualDebtTarget:desired,
+    manualDebtUpdatedAt:changed?now():(old&&old.manualDebtUpdatedAt?old.manualDebtUpdatedAt:null),
+    created:old&&old.created?old.created:now()
+  });
+  var i=A(db.customers).findIndex(function(x){return String(x.id)===String(id)});
+  if(i>=0)db.customers[i]=o;else db.customers.push(o);
+  try{if(typeof logAction==='function')logAction('customer',(i>=0?'تعديل':'إضافة')+' زبون: '+o.name+' — الدين الحالي '+(typeof money==='function'?money(desired):desired))}catch(_e){}
+  var backToSale=typeof returnToSaleAfterCustomer!=='undefined'&&returnToSaleAfterCustomer;
+  try{returnToSaleAfterCustomer=false}catch(_e){}
+  try{E('customerDlg').close()}catch(_e){}
+  try{persist()}catch(err){console.error(err);return alert('تعذر حفظ تعديل الزبون.')}
+  if(backToSale){
+    try{E('sCustomer').innerHTML=optsCustomers(true);E('sCustomer').value=o.id;recalcSale();E('saleDlg').showModal();setTimeout(function(){try{E('sBarcodeQuick').focus()}catch(_e){}},120)}catch(_e){}
+  }
+  try{if(typeof renderCustomers==='function')renderCustomers()}catch(_e){}
+  try{if(typeof renderDebts==='function')renderDebts()}catch(_e){}
+  try{if(typeof v123oRefreshCustomerButton==='function')v123oRefreshCustomerButton()}catch(_e){}
+};
+try{saveCustomer=window.saveCustomer}catch(_e){}
+
+window.lastCustomerMove=function(id){
+  var c=A(db&&db.customers).find(function(x){return String(x.id)===String(id)}),dates=[];
+  A(db&&db.sales).filter(function(x){return String(x.customerId)===String(id)&&x.status!=='cancelled'}).forEach(function(x){if(x.date)dates.push(x.date)});
+  A(db&&db.payments).filter(function(x){return x.type==='customer'&&String(x.partyId)===String(id)&&x.status!=='cancelled'}).forEach(function(x){if(x.date)dates.push(x.date)});
+  A(db&&db.returns).filter(function(x){return String(x.customerId)===String(id)&&x.status!=='cancelled'}).forEach(function(x){if(x.date)dates.push(x.date)});
+  if(c&&Math.abs(N(c.openingDebt))>0.5)dates.push(c.manualDebtUpdatedAt||c.openingDebtDate||c.created||now());
+  dates=dates.filter(Boolean).sort();return dates.length?dates[dates.length-1]:null;
+};
+try{lastCustomerMove=window.lastCustomerMove}catch(_e){}
+
+window.getCustomerStatementData=function(id){
+  var c=A(db&&db.customers).find(function(x){return String(x.id)===String(id)});if(!c)return null;
+  var moves=[],adj=N(c.openingDebt);
+  if(Math.abs(adj)>0.5){
+    moves.push({date:c.manualDebtUpdatedAt||c.openingDebtDate||c.created||now(),text:c.manualDebtUpdatedAt?'تعديل رصيد يدوي':'دين سابق / رصيد افتتاحي',debit:adj>0?adj:0,credit:adj<0?Math.abs(adj):0});
+  }
+  A(db&&db.sales).filter(function(x){return String(x.customerId)===String(id)&&x.status!=='cancelled'&&N(x.due)>0}).forEach(function(x){moves.push({date:x.date,text:'فاتورة '+(x.no||''),debit:N(x.due),credit:0})});
+  A(db&&db.payments).filter(function(x){return x.type==='customer'&&String(x.partyId)===String(id)&&x.status!=='cancelled'}).forEach(function(x){moves.push({date:x.date,text:'تسديد'+(x.note?' — '+x.note:''),debit:0,credit:N(x.amount)})});
+  A(db&&db.returns).filter(function(x){return String(x.customerId)===String(id)&&x.status!=='cancelled'&&N(x.creditApplied!=null?x.creditApplied:x.value)>0}).forEach(function(x){moves.push({date:x.date,text:'مرتجع '+(x.saleNo||'')+' — '+(x.productName||''),debit:0,credit:N(x.creditApplied!=null?x.creditApplied:x.value)})});
+  moves.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
+  var bal=0,rows=moves.map(function(x){bal=Math.max(0,bal+N(x.debit)-N(x.credit));return Object.assign({},x,{balance:bal})});
+  var lm=window.lastCustomerMove(id);return {customer:c,rows:rows,debt:debt(id),age:lm&&typeof days==='function'?days(lm):0};
+};
+try{getCustomerStatementData=window.getCustomerStatementData}catch(_e){}
+
+function boot(){ensureDebtField();try{if(typeof renderCustomers==='function')renderCustomers()}catch(_e){}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,1300)});else setTimeout(boot,1300);
+})();
+</script>
+
 </body>
 </html>
