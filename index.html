@@ -1951,7 +1951,7 @@ function ensureV41UI(){
     <div class="wa-kpis" style="margin:10px 0"><div class="card"><span>مستحقون الآن</span><b id="waDueCount">0</b></div><div class="card"><span>ديون بدون رقم</span><b id="waNoPhoneCount">0</b></div><div class="card"><span>الوضع</span><b id="waModeView" style="font-size:16px">-</b></div><div class="card"><span>آخر إرسال</span><b id="waLastSend" style="font-size:16px">-</b></div></div>
     <div class="toolbar"><button onclick="renderWhatsAppCenter()">تحديث</button><button class="btn-primary" onclick="sendDueWhatsAppNow()">إرسال المستحقين آليًا الآن</button></div>
     <div class="table-wrap"><table><thead><tr><th>الزبون</th><th>الدين</th><th>العمر</th><th>آخر تذكير</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="waDebtQueueBody"></tbody></table></div>
-    <div class="card" style="margin-top:10px"><h3>سجل واتساب</h3><div id="waLog" class="list"></div></div>
+    <div id="waLogPanel" style="display:none!important" aria-hidden="true"><div id="waLog" class="list"></div></div>
   </div>`);
   // WhatsApp settings card
   const settings=$('settings');if(settings&&!$('waSettingsCard')){
