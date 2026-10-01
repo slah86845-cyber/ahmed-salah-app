@@ -1,0 +1,20 @@
+{
+  "name": "جملة أحمد صلاح",
+  "short_name": "جملة أحمد صلاح",
+  "description": "نظام جملة أحمد صلاح للمبيعات والديون",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#071522",
+  "theme_color": "#0f172a",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
