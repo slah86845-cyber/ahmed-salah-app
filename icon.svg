@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="112" fill="#071522"/>
+<circle cx="256" cy="220" r="138" fill="#0b2b44" stroke="#d8b45b" stroke-width="18"/>
+<path d="M145 232c54-83 168-94 225-20-43 13-83 49-104 96-54-7-91-32-121-76z" fill="#1b79a5"/>
+<path d="M117 375h278" stroke="#d8b45b" stroke-width="24" stroke-linecap="round"/>
+<text x="256" y="438" text-anchor="middle" font-size="54" font-family="Arial,Tahoma,sans-serif" font-weight="700" fill="#f6dc8c">أحمد صلاح</text>
+</svg>
