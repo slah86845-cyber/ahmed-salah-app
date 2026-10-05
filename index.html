@@ -4430,5 +4430,37 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<!-- V12.31 IPHONE PWA HOTFIX -->
+<style>
+html,body{min-height:100%;-webkit-text-size-adjust:100%}
+@supports(height:100dvh){dialog#saleDlg{max-height:100dvh}}
+#saleDlg,.modal,.table-wrap{-webkit-overflow-scrolling:touch}
+</style>
+<script>
+(function(){
+  function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+  function standalone(){return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
+  window.installApp=function(){
+    if(standalone()){alert('التطبيق مثبت بالفعل على الشاشة الرئيسية.');return}
+    if(isIOS()){
+      alert('لتثبيت التطبيق على الآيفون:\n1- افتح هذه الصفحة في سفاري.\n2- اضغط زر المشاركة.\n3- اختر إضافة إلى الشاشة الرئيسية.\n4- اضغط إضافة.');
+      return;
+    }
+    if(window.deferredInstallPrompt){
+      window.deferredInstallPrompt.prompt();
+      window.deferredInstallPrompt.userChoice.finally(function(){window.deferredInstallPrompt=null});
+      return;
+    }
+    var h=document.getElementById('installHint');if(h)h.style.display='block';
+    alert('افتح الصفحة من المتصفح ثم اختر تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية.');
+  };
+  if('serviceWorker' in navigator && location.protocol!=='file:'){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).then(function(r){return r.update()}).catch(function(e){console.error('Service worker:',e)});
+    });
+  }
+})();
+</script>
 </body>
 </html>
