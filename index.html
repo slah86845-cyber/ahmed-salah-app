@@ -1299,7 +1299,7 @@ setupAutoLock();
 
 // تفعيل النسخة كتطبيق PWA عند التشغيل عبر http/https.
 if('serviceWorker' in navigator && location.protocol!=='file:'){
- navigator.serviceWorker.register('./sw.js').then(r=>r.update()).catch(()=>{});
+ navigator.serviceWorker.register('./service-worker.js').then(r=>r.update()).catch(()=>{});
 }
 </script>
 <script>
@@ -3142,7 +3142,7 @@ let installPrompt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;document.getElementById('pwaInstallBar').style.display='flex'});
 document.addEventListener('click',async e=>{if(e.target?.id==='pwaInstallBtn'&&installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;document.getElementById('pwaInstallBar').style.display='none'}});
 addEventListener('appinstalled',()=>document.getElementById('pwaInstallBar').style.display='none');
-if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
 </script>
 <style id="v70-style">
 .ai-fab{display:block!important}
